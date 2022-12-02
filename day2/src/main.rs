@@ -34,19 +34,20 @@ impl Shape {
 }
 
 #[derive(Debug)]
-enum ParseInputError {
+enum Day2Error {
+    InvalidCode,
     InvalidPlay,
     InvalidRound,
 }
 
 impl TryFrom<char> for Shape {
-    type Error = ParseInputError;
+    type Error = Day2Error;
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
             'A' | 'X' => Ok(Shape::Rock),
             'B' | 'Y' => Ok(Shape::Paper),
             'C' | 'Z' => Ok(Shape::Scissors),
-            _ => Err(ParseInputError::InvalidPlay),
+            _ => Err(Day2Error::InvalidPlay),
         }
     }
 }
@@ -85,47 +86,56 @@ impl Round {
     }
 }
 
-enum Strategy {
-    Part1,
-    Part2,
+trait PlayStrategy {
+    fn play(&self, code: char, other: &Shape) -> Result<Shape, Day2Error>;
+}
+
+struct Part1Strategy;
+impl PlayStrategy for Part1Strategy {
+    fn play(&self, code: char, _other: &Shape) -> Result<Shape, Day2Error> {
+        code.try_into()
+    }
+}
+
+struct Part2Strategy;
+impl PlayStrategy for Part2Strategy {
+    fn play(&self, code: char, other: &Shape) -> Result<Shape, Day2Error> {
+        match code {
+            'X' => Ok(other.defeats()),
+            'Y' => Ok(other.clone()),
+            'Z' => Ok(other.loses_to()),
+            _ => Err(Day2Error::InvalidCode),
+        }
+    }
 }
 
 impl Round {
-    fn from_str(s: &str, strategy: &Strategy) -> Result<Self, ParseInputError> {
-        let opponent_play = s.chars().nth(0).ok_or(ParseInputError::InvalidRound)?;
-        let my_play = s.chars().nth(2).ok_or(ParseInputError::InvalidRound)?;
+    fn from_str<S: PlayStrategy>(s: &str, strategy: &S) -> Result<Self, Day2Error> {
+        let opponent_play = s.chars().nth(0).ok_or(Day2Error::InvalidRound)?;
+        let _my_play = s.chars().nth(2).ok_or(Day2Error::InvalidRound)?;
 
-        let opponent: Shape = opponent_play.try_into()?;
-        // TODO: Clean up with strategy pattern for enums?
-        let me = match strategy {
-            Strategy::Part1 => my_play.try_into()?,
-            Strategy::Part2 => match my_play {
-                'X' => opponent.defeats(),
-                'Y' => opponent.clone(),
-                'Z' => opponent.loses_to(),
-                _ => return Err(ParseInputError::InvalidPlay),
-            },
-        };
+        let opponent = opponent_play.try_into()?;
+        let me = strategy.play(_my_play, &opponent)?;
 
         Ok(Round { opponent, me })
     }
 }
 
-fn score(input: &str, strategy: &Strategy) -> Result<u32, ParseInputError> {
+fn score<S: PlayStrategy>(input: &str, strategy: &S) -> Result<u32, Day2Error> {
     input
         .lines()
         .filter(|line| !line.is_empty())
         .map(|line| Round::from_str(line, strategy))
         // TODO: There has to be a cleaner way to do this than a map within a map.
-        .map(|r| r.map(|round| round.score()))
+        .map(|result| result.map(|round| round.score()))
         .sum()
 }
 
 fn main() -> io::Result<()> {
     let input = io::read_to_string(stdin())?;
-    let part_1 = score(&input, &Strategy::Part1).expect("could not score part 1");
+    let part_1 = score(&input, &Part1Strategy).expect("could not score part 1");
     println!("Part 1: {part_1}");
-    let part_2 = score(&input, &Strategy::Part2).expect("could not score part 2");
+    let part_2 = score(&input, &Part2Strategy).expect("could not score part 2");
     println!("Part 2: {part_2}");
     Ok(())
 }
@@ -134,46 +144,46 @@ fn main() -> io::Result<()> {
 mod test {
     use super::*;
     #[test]
-    fn sample_input_1() -> Result<(), ParseInputError> {
+    fn sample_input_1() -> Result<(), Day2Error> {
         let input = r#"
 A Y
 B X
 C Z
 "#;
-        assert_eq!(score(input, &Strategy::Part1)?, 15);
+        assert_eq!(score(input, &Part1Strategy)?, 15);
         Ok(())
     }
 
     #[test]
-    fn sample_input_2() -> Result<(), ParseInputError> {
+    fn sample_input_2() -> Result<(), Day2Error> {
         let input = r#"
 A Y
 B X
 C Z
 "#;
-        assert_eq!(score(input, &Strategy::Part2)?, 12);
+        assert_eq!(score(input, &Part2Strategy)?, 12);
         Ok(())
     }
 
     #[test]
-    fn line_to_round_part_1() -> Result<(), ParseInputError> {
+    fn line_to_round_part_1() -> Result<(), Day2Error> {
         let line = "A Y";
         let expected = Round {
             opponent: Shape::Rock,
             me: Shape::Paper,
         };
-        assert_eq!(Round::from_str(line, &Strategy::Part1)?, expected);
+        assert_eq!(Round::from_str(line, &Part1Strategy)?, expected);
         Ok(())
     }
 
     #[test]
-    fn line_to_round_part_2() -> Result<(), ParseInputError> {
+    fn line_to_round_part_2() -> Result<(), Day2Error> {
         let line = "A Y";
         let expected = Round {
             opponent: Shape::Rock,
             me: Shape::Rock,
         };
-        assert_eq!(Round::from_str(line, &Strategy::Part2)?, expected);
+        assert_eq!(Round::from_str(line, &Part2Strategy)?, expected);
         Ok(())
     }
 

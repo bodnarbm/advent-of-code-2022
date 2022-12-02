@@ -1,7 +1,4 @@
-use std::{
-    cmp::Ordering,
-    io::{self, stdin},
-};
+use std::io::{self, stdin};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum Shape {
@@ -36,24 +33,6 @@ impl Shape {
     }
 }
 
-impl PartialOrd for Shape {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Shape {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self == other {
-            Ordering::Equal
-        } else if self.defeats().eq(other) {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
-    }
-}
-
 #[derive(Debug)]
 enum ParseInputError {
     InvalidPlay,
@@ -72,6 +51,12 @@ impl TryFrom<char> for Shape {
     }
 }
 
+enum RoundResult {
+    Win,
+    Lose,
+    Draw,
+}
+
 #[derive(Debug, PartialEq)]
 struct Round {
     opponent: Shape,
@@ -81,12 +66,22 @@ struct Round {
 impl Round {
     fn score(&self) -> u32 {
         let shape_points = self.me.score();
-        let result_points = match self.me.cmp(&self.opponent) {
-            Ordering::Less => 0,
-            Ordering::Equal => 3,
-            Ordering::Greater => 6,
+        let result_points = match self.result() {
+            RoundResult::Lose => 0,
+            RoundResult::Draw => 3,
+            RoundResult::Win => 6,
         };
         shape_points + result_points
+    }
+
+    fn result(&self) -> RoundResult {
+        if self.me == self.opponent {
+            RoundResult::Draw
+        } else if self.me.defeats() == self.opponent {
+            RoundResult::Win
+        } else {
+            RoundResult::Lose
+        }
     }
 }
 

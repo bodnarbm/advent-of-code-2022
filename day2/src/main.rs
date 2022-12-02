@@ -35,9 +35,9 @@ impl Shape {
 
 #[derive(Debug)]
 enum Day2Error {
-    InvalidCode,
-    InvalidPlay,
-    InvalidRound,
+    Code,
+    Play,
+    Round,
 }
 
 impl TryFrom<char> for Shape {
@@ -47,7 +47,7 @@ impl TryFrom<char> for Shape {
             'A' | 'X' => Ok(Shape::Rock),
             'B' | 'Y' => Ok(Shape::Paper),
             'C' | 'Z' => Ok(Shape::Scissors),
-            _ => Err(Day2Error::InvalidPlay),
+            _ => Err(Day2Error::Play),
         }
     }
 }
@@ -104,18 +104,23 @@ impl PlayStrategy for Part2Strategy {
             'X' => Ok(other.defeats()),
             'Y' => Ok(other.clone()),
             'Z' => Ok(other.loses_to()),
-            _ => Err(Day2Error::InvalidCode),
+            _ => Err(Day2Error::Code),
         }
     }
 }
 
 impl Round {
-    fn from_str<S: PlayStrategy>(s: &str, strategy: &S) -> Result<Self, Day2Error> {
-        let opponent_play = s.chars().nth(0).ok_or(Day2Error::InvalidRound)?;
-        let _my_play = s.chars().nth(2).ok_or(Day2Error::InvalidRound)?;
+    fn from_line<S: PlayStrategy>(s: &str, strategy: &S) -> Result<Self, Day2Error> {
+        let mut chars = s.chars().take(3).step_by(2);
+        let Some(opponent_play) = chars.next() else {
+            return Err(Day2Error::Round);
+        };
+        let Some(my_play) = chars.next() else {
+            return Err(Day2Error::Round);
+        };
 
         let opponent = opponent_play.try_into()?;
-        let me = strategy.play(_my_play, &opponent)?;
+        let me = strategy.play(my_play, &opponent)?;
 
         Ok(Round { opponent, me })
     }
@@ -125,7 +130,7 @@ fn score<S: PlayStrategy>(input: &str, strategy: &S) -> Result<u32, Day2Error> {
     input
         .lines()
         .filter(|line| !line.is_empty())
-        .map(|line| Round::from_str(line, strategy))
+        .map(|line| Round::from_line(line, strategy))
         // TODO: There has to be a cleaner way to do this than a map within a map.
         .map(|result| result.map(|round| round.score()))
         .sum()
@@ -172,7 +177,7 @@ C Z
             opponent: Shape::Rock,
             me: Shape::Paper,
         };
-        assert_eq!(Round::from_str(line, &Part1Strategy)?, expected);
+        assert_eq!(Round::from_line(line, &Part1Strategy)?, expected);
         Ok(())
     }
 
@@ -183,7 +188,7 @@ C Z
             opponent: Shape::Rock,
             me: Shape::Rock,
         };
-        assert_eq!(Round::from_str(line, &Part2Strategy)?, expected);
+        assert_eq!(Round::from_line(line, &Part2Strategy)?, expected);
         Ok(())
     }
 

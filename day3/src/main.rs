@@ -20,13 +20,15 @@ fn part_2(input: &str) -> u32 {
     sum
 }
 
+const LOWER_A: u32 = 'a' as u32;
+const LOWER_Z: u32 = 'z' as u32;
+const UPPER_A: u32 = 'A' as u32;
+const UPPER_Z: u32 = 'Z' as u32;
+
 fn to_bitfield(c: char) -> u64 {
-    let offset = (c as u32) - ('A' as u32);
-    let bit = match offset {
-        0..=25 => offset + 26,
-        32..=57 => offset - 32,
-        _ => return 0,
-    };
+    let c = c as u32;
+    let bit = (c >= LOWER_A && c <= LOWER_Z) as u32 * c.saturating_sub(LOWER_A)
+        + (c >= UPPER_A && c <= UPPER_Z) as u32 * (c.saturating_sub(UPPER_A) + 26);
     1 << bit
 }
 

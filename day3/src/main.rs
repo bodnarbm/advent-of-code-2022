@@ -27,8 +27,8 @@ const UPPER_Z: u32 = 'Z' as u32;
 
 fn to_bitfield(c: char) -> u64 {
     let c = c as u32;
-    let bit = (c >= LOWER_A && c <= LOWER_Z) as u32 * c.saturating_sub(LOWER_A)
-        + (c >= UPPER_A && c <= UPPER_Z) as u32 * (c.saturating_sub(UPPER_A) + 26);
+    let bit = ((LOWER_A..=LOWER_Z).contains(&c)) as u32 * c.saturating_sub(LOWER_A)
+        + ((UPPER_A..=UPPER_Z).contains(&c)) as u32 * (c.saturating_sub(UPPER_A) + 26);
     1 << bit
 }
 

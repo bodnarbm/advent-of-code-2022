@@ -190,31 +190,13 @@ mod test {
 
     #[test]
     fn test_overlaps() {
-        assert_eq!(
-            Assignment { start: 0, end: 1 }.overlaps(&Assignment { start: 2, end: 3 }),
-            false
-        );
-        assert_eq!(
-            Assignment { start: 2, end: 3 }.overlaps(&Assignment { start: 0, end: 1 }),
-            false
-        );
+        assert!(!Assignment { start: 0, end: 1 }.overlaps(&Assignment { start: 2, end: 3 }));
+        assert!(!Assignment { start: 2, end: 3 }.overlaps(&Assignment { start: 0, end: 1 }));
 
-        assert_eq!(
-            Assignment { start: 0, end: 2 }.overlaps(&Assignment { start: 2, end: 3 }),
-            true
-        );
-        assert_eq!(
-            Assignment { start: 2, end: 3 }.overlaps(&Assignment { start: 0, end: 2 }),
-            true
-        );
+        assert!(Assignment { start: 0, end: 2 }.overlaps(&Assignment { start: 2, end: 3 }));
+        assert!(Assignment { start: 2, end: 3 }.overlaps(&Assignment { start: 0, end: 2 }));
 
-        assert_eq!(
-            Assignment { start: 0, end: 3 }.overlaps(&Assignment { start: 2, end: 3 }),
-            true
-        );
-        assert_eq!(
-            Assignment { start: 2, end: 3 }.overlaps(&Assignment { start: 0, end: 3 }),
-            true
-        );
+        assert!(Assignment { start: 0, end: 3 }.overlaps(&Assignment { start: 2, end: 3 }));
+        assert!(Assignment { start: 2, end: 3 }.overlaps(&Assignment { start: 0, end: 3 }));
     }
 }

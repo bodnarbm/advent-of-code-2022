@@ -1,7 +1,16 @@
 use core::fmt;
 use std::{
     io::{self, stdin},
-    str::FromStr,
+    vec,
+};
+
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{anychar, char, digit1, multispace1, newline, space1},
+    combinator::{map, map_res},
+    multi::separated_list1,
+    sequence::{delimited, preceded},
 };
 
 #[derive(Debug)]
@@ -28,12 +37,6 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-type Crate = char;
-
-type Stack = Vec<Crate>;
-
-type Yard = Vec<Stack>;
-
 #[derive(Debug, PartialEq)]
 struct Move {
     count: usize,
@@ -41,33 +44,9 @@ struct Move {
     to: usize,
 }
 
-impl FromStr for Move {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut tokens = s.split_whitespace();
-        let mut count = 0;
-        let mut from = 0;
-        let mut to = 0;
-        while let Some(token) = tokens.next() {
-            let value = tokens
-                .next()
-                .ok_or(Error::ParsingError)?
-                .parse()
-                .or(Err(Error::ParsingError))?;
-            match token {
-                "move" => count = value,
-                "to" => to = value,
-                "from" => from = value,
-                _ => return Err(Error::ParsingError),
-            }
-        }
-        Ok(Move { count, from, to })
-    }
-}
-
 #[derive(Debug, PartialEq)]
 struct PuzzleInput {
-    yard: Yard,
+    yard: Vec<Vec<char>>,
     moves: Vec<Move>,
 }
 
@@ -77,67 +56,46 @@ impl PuzzleInput {
     }
 }
 
-impl FromStr for PuzzleInput {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut lines = s.lines().peekable();
+fn parse_input(input: &str) -> nom::IResult<&str, PuzzleInput> {
+    let (input, crate_slices) =
+        separated_list1(newline, separated_list1(tag(" "), parse_crate))(input)?;
+    let (input, labels) = preceded(multispace1, separated_list1(space1, digit1))(input)?;
 
-        let mut slices = vec![];
-        // Collect Stack chunks
-        while let Some(&line) = lines.peek() {
-            if !line.contains('[') {
-                // End of Crates
-                break;
-            }
-            lines.next(); // Consume iteration
-
-            let level: Vec<char> = line
-                .chars()
-                .collect::<Vec<_>>()
-                .chunks(4)
-                .map(|c| c.get(1).unwrap_or(&' ').to_owned())
-                .collect();
-            slices.push(level);
+    let total_stacks = labels.len();
+    let mut yard = vec![vec![]; total_stacks];
+    for cs in crate_slices.into_iter().rev() {
+        for (i, c) in cs
+            .into_iter()
+            .enumerate()
+            .flat_map(|(i, o)| o.map(|c| (i, c)))
+        {
+            yard[i].push(c);
         }
-
-        // Collect Stack Labels
-        let stack_labels = lines.next().ok_or(Error::ParsingError)?;
-        let stack_count = stack_labels
-            .split_whitespace()
-            .last()
-            .ok_or(Error::ParsingError)?
-            .parse()
-            .or(Err(Error::ParsingError))?;
-
-        let mut yard = vec![vec![]; stack_count];
-
-        // Put crates in stacks
-
-        for slice in slices.into_iter().rev() {
-            for (s, c) in slice.into_iter().enumerate() {
-                if c != ' ' {
-                    yard[s].push(c);
-                }
-            }
-        }
-
-        // Skip empty line
-        lines.next();
-
-        let mut moves = vec![];
-
-        // Collect moves
-        for line in lines {
-            let m = line.parse()?;
-            moves.push(m); // Skip move token
-        }
-
-        Ok(PuzzleInput { moves, yard })
     }
+    let (input, moves) = preceded(multispace1, separated_list1(newline, parse_move))(input)?;
+    Ok((input, PuzzleInput { moves, yard }))
+}
+
+fn parse_crate(input: &str) -> nom::IResult<&str, Option<char>> {
+    let (input, c) = alt((
+        map(tag("   "), |_| None),
+        map(delimited(char('['), anychar, char(']')), Some),
+    ))(input)?;
+    Ok((input, c))
+}
+
+fn parse_move(input: &str) -> nom::IResult<&str, Move> {
+    let (input, _) = tag("move ")(input)?;
+    let (input, count) = map_res(digit1, str::parse)(input)?;
+    let (input, _) = tag(" from ")(input)?;
+    let (input, from) = map_res(digit1, str::parse)(input)?;
+    let (input, _) = tag(" to ")(input)?;
+    let (input, to) = map_res(digit1, str::parse)(input)?;
+    Ok((input, Move { count, from, to }))
 }
 
 fn part1(input: &str) -> Result<String, Error> {
-    let mut puzzle: PuzzleInput = input.parse()?;
+    let (_, mut puzzle) = parse_input(input).or(Err(Error::ParsingError))?;
     for Move { count, from, to } in &puzzle.moves {
         for _ in 0..*count {
             if let Some(c) = puzzle.yard[from - 1].pop() {
@@ -149,7 +107,7 @@ fn part1(input: &str) -> Result<String, Error> {
 }
 
 fn part2(input: &str) -> Result<String, Error> {
-    let mut puzzle: PuzzleInput = input.parse()?;
+    let (_, mut puzzle) = parse_input(input).or(Err(Error::ParsingError))?;
     for Move { count, from, to } in &puzzle.moves {
         let from_stack = &mut puzzle.yard[from - 1];
 
@@ -162,7 +120,7 @@ fn part2(input: &str) -> Result<String, Error> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     static EXAMPLE_INPUT: &str = "    [D]    
@@ -188,36 +146,58 @@ move 1 from 1 to 2";
     }
 
     #[test]
-    fn parse_example_input() -> Result<(), Error> {
-        let result: PuzzleInput = EXAMPLE_INPUT.parse()?;
+    fn test_parse_move() {
         assert_eq!(
-            result,
-            PuzzleInput {
-                yard: vec![vec!['Z', 'N'], vec!['M', 'C', 'D'], vec!['P']],
-                moves: vec![
-                    Move {
-                        count: 1,
-                        from: 2,
-                        to: 1
-                    },
-                    Move {
-                        count: 3,
-                        from: 1,
-                        to: 3
-                    },
-                    Move {
-                        count: 2,
-                        from: 2,
-                        to: 1
-                    },
-                    Move {
-                        count: 1,
-                        from: 1,
-                        to: 2
-                    }
-                ]
-            }
+            parse_move("move 1 from 2 to 1"),
+            Ok((
+                "",
+                Move {
+                    count: 1,
+                    from: 2,
+                    to: 1
+                }
+            ))
         );
-        Ok(())
+    }
+
+    #[test]
+    fn test_parse_crate() {
+        assert_eq!(parse_crate("   "), Ok(("", None)));
+        assert_eq!(parse_crate("[D]"), Ok(("", Some('D'))));
+    }
+
+    #[test]
+    fn test_parse_input() {
+        assert_eq!(
+            parse_input(EXAMPLE_INPUT),
+            Ok((
+                "",
+                PuzzleInput {
+                    yard: vec![vec!['Z', 'N'], vec!['M', 'C', 'D'], vec!['P']],
+                    moves: vec![
+                        Move {
+                            count: 1,
+                            from: 2,
+                            to: 1
+                        },
+                        Move {
+                            count: 3,
+                            from: 1,
+                            to: 3
+                        },
+                        Move {
+                            count: 2,
+                            from: 2,
+                            to: 1
+                        },
+                        Move {
+                            count: 1,
+                            from: 1,
+                            to: 2
+                        }
+                    ]
+                }
+            ))
+        )
     }
 }

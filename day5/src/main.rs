@@ -85,12 +85,9 @@ fn parse_crate(input: &str) -> nom::IResult<&str, Option<char>> {
 }
 
 fn parse_move(input: &str) -> nom::IResult<&str, Move> {
-    let (input, _) = tag("move ")(input)?;
-    let (input, count) = map_res(digit1, str::parse)(input)?;
-    let (input, _) = tag(" from ")(input)?;
-    let (input, from) = map_res(digit1, str::parse)(input)?;
-    let (input, _) = tag(" to ")(input)?;
-    let (input, to) = map_res(digit1, str::parse)(input)?;
+    let (input, count) = preceded(tag("move "), map_res(digit1, str::parse))(input)?;
+    let (input, from) = preceded(tag(" from "), map_res(digit1, str::parse))(input)?;
+    let (input, to) = preceded(tag(" to "), map_res(digit1, str::parse))(input)?;
     Ok((input, Move { count, from, to }))
 }
 

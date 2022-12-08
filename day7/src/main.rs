@@ -107,7 +107,7 @@ struct DirectoryIterator {
 }
 
 impl Iterator for DirectoryIterator {
-    type Item = FileType;
+    type Item = Rc<RefCell<Directory>>;
     fn next(&mut self) -> Option<Self::Item> {
         let Some(next) = self.stack.pop() else {
             return None;
@@ -118,7 +118,7 @@ impl Iterator for DirectoryIterator {
                 self.stack.push(child.clone())
             }
         }
-        Some(FileType::Directory(next))
+        Some(next)
     }
 }
 
@@ -145,6 +145,10 @@ impl Directory {
             contents: vec![],
         }
     }
+
+    fn total_size(&self) -> usize {
+        self.contents.iter().map(|c| c.disk_size()).sum()
+    }
 }
 
 struct File {
@@ -169,13 +173,7 @@ enum FileType {
 impl FileType {
     fn disk_size(&self) -> usize {
         match self {
-            Self::Directory(directory) => directory
-                .as_ref()
-                .borrow()
-                .contents
-                .iter()
-                .map(|c| c.disk_size())
-                .sum(),
+            Self::Directory(directory) => directory.as_ref().borrow().total_size(),
             Self::File(file) => file.size,
         }
     }
@@ -222,7 +220,7 @@ fn part1(input: &str) -> Result<usize> {
 
     let total_size = file_system
         .directories()
-        .map(|directory| directory.disk_size())
+        .map(|directory| directory.as_ref().borrow().total_size())
         .filter(|s| *s <= 100000)
         .sum();
     Ok(total_size)
@@ -240,7 +238,7 @@ fn part2(input: &str) -> Result<usize> {
 
     let space_to_free_up = file_system
         .directories()
-        .map(|directory| directory.disk_size())
+        .map(|directory| directory.as_ref().borrow().total_size())
         .filter(|s| *s >= must_free_up)
         .min()
         .unwrap_or_default();

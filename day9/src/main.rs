@@ -25,6 +25,10 @@ impl Vector2 {
     fn max_magnitude(&self) -> i64 {
         self.0.abs().max(self.1.abs())
     }
+
+    fn clamp(&self, min: &Vector2, max: &Vector2) -> Vector2 {
+        Vector2(self.0.clamp(min.0, max.0), self.1.clamp(min.1, max.1))
+    }
 }
 
 impl AddAssign for Vector2 {
@@ -93,9 +97,7 @@ fn count_tail_positions<const LENGTH: usize>(moves: Vec<Direction>) -> usize {
         for knot in rest.iter_mut() {
             let delta = *prior - *knot;
             if delta.max_magnitude() > 1 {
-                knot.0 += delta.0.clamp(-1, 1);
-                knot.1 += delta.1.clamp(-1, 1);
-                dbg!(&knot);
+                *knot += delta.clamp(&Vector2(-1, -1), &Vector2(1, 1));
             }
             prior = knot;
         }

@@ -90,7 +90,7 @@ impl Cpu {
 }
 
 struct Crt {
-    sprite_pos: u8,
+    sprite_pos: i16,
     frame_buffer: [char; 240],
     draw_pos: u8,
 }
@@ -104,13 +104,13 @@ impl Crt {
         }
     }
 
-    fn set_sprite_pos(&mut self, sprite_pos: u8) {
+    fn set_sprite_pos(&mut self, sprite_pos: i16) {
         self.sprite_pos = sprite_pos;
     }
 
     fn draw(&mut self) {
         self.frame_buffer[self.draw_pos as usize] =
-            if self.sprite_pos.abs_diff(self.draw_pos % 40) <= 1 {
+            if self.sprite_pos.abs_diff((self.draw_pos % 40) as i16) <= 1 {
                 '#'
             } else {
                 '.'
@@ -154,7 +154,7 @@ fn part2(input: &str) -> String {
     let max_cycles = 240;
     cpu.load_program(instructions);
     for _cycle in 1usize..=max_cycles {
-        crt.set_sprite_pos(cpu.register_x() as u8);
+        crt.set_sprite_pos(cpu.register_x() as i16);
         cpu.tick();
         crt.draw();
     }

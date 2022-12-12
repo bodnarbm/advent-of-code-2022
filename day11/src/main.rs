@@ -1,4 +1,4 @@
-use std::{io, ops::Rem, u128};
+use std::io;
 
 fn main() {
     let input = io::read_to_string(io::stdin()).unwrap();
@@ -26,14 +26,14 @@ pub(crate) struct Operation {
 }
 
 impl Operation {
-    fn evaluate(&self, old: u128) -> u128 {
+    fn evaluate(&self, old: u64) -> u64 {
         let lhs = match self.lhs {
             Operand::Old => old,
-            Operand::Literal(v) => v as u128,
+            Operand::Literal(v) => v as u64,
         };
         let rhs = match self.rhs {
             Operand::Old => old,
-            Operand::Literal(v) => v as u128,
+            Operand::Literal(v) => v as u64,
         };
 
         match self.operator {
@@ -51,7 +51,7 @@ pub(crate) struct Test {
 
 #[derive(Debug)]
 pub(crate) struct Monkey {
-    items: Vec<u128>,
+    items: Vec<u64>,
     operation: Operation,
     test: Test,
 }
@@ -59,16 +59,16 @@ pub(crate) struct Monkey {
 impl Monkey {
     fn inspect_items(
         &mut self,
-        boredum_fn: &dyn Fn(u128) -> u128,
-        rescaler: u128,
-    ) -> Vec<(usize, u128)> {
+        boredum_fn: &dyn Fn(u64) -> u64,
+        rescaler: u64,
+    ) -> Vec<(usize, u64)> {
         self.items
             .drain(0..)
             .map(|old| self.operation.evaluate(old))
             .map(boredum_fn)
             .map(|w| w % rescaler)
             .map(|worry_level| {
-                let target = if worry_level.rem(self.test.divisible_by as u128) == 0 {
+                let target = if worry_level % (self.test.divisible_by as u64) == 0 {
                     self.test.targets.1
                 } else {
                     self.test.targets.0
@@ -84,10 +84,7 @@ fn part1(input: &str) -> usize {
 
     let rounds = 20;
     let mut inspections = vec![0; monkeys.len()];
-    let rescaler = monkeys
-        .iter()
-        .map(|m| m.test.divisible_by as u128)
-        .product();
+    let rescaler = monkeys.iter().map(|m| m.test.divisible_by as u64).product();
 
     for _ in 0..rounds {
         for idx in 0..monkeys.len() {
@@ -110,10 +107,7 @@ fn part2(input: &str) -> usize {
     let rounds = 10000;
 
     let mut inspections = vec![0; monkeys.len()];
-    let rescaler = monkeys
-        .iter()
-        .map(|m| m.test.divisible_by as u128)
-        .product();
+    let rescaler = monkeys.iter().map(|m| m.test.divisible_by as u64).product();
 
     for _ in 0..rounds {
         for idx in 0..monkeys.len() {
@@ -142,10 +136,10 @@ mod parsers {
 
     use crate::{Monkey, Operand, Operation, Operator, Test};
 
-    fn start_items(input: &str) -> IResult<&str, Vec<u128>> {
+    fn start_items(input: &str) -> IResult<&str, Vec<u64>> {
         preceded(
             tag("Starting items: "),
-            separated_list1(tag(", "), complete::u128),
+            separated_list1(tag(", "), complete::u64),
         )(input)
     }
 

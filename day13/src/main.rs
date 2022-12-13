@@ -24,10 +24,7 @@ impl Ord for Element {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
             (Element::Integer(s), Element::Integer(o)) => s.cmp(o),
-            (Element::List(s), Element::List(o)) => match s.iter().zip(o).find(|(s, o)| s != o) {
-                Some((s, o)) => s.cmp(o),
-                None => s.len().cmp(&o.len()),
-            },
+            (Element::List(s), Element::List(o)) => s.cmp(o),
             (Element::Integer(s), Element::List(_)) => {
                 Element::List(vec![Element::Integer(*s)]).cmp(other)
             }
